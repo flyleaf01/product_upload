@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:product_upload/models/textfield.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UploadScreen extends StatefulWidget {
   @override
@@ -40,7 +41,7 @@ class _UploadScreenState extends State<UploadScreen> {
   // Method to show progress in the notification bar
   void showProgressNotification(int progress) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails('progress_channel', 'Progress', );
+        AndroidNotificationDetails('progress_channel', 'Progress',channelDescription: 'Notification channel for showing progress updates' );
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.show(
@@ -70,7 +71,8 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
+    try {
+      if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
       if (_selectedImages.isNotEmpty) {
@@ -87,9 +89,10 @@ class _UploadScreenState extends State<UploadScreen> {
         'images': _imageUrls,
       };
 
-      final databaseRef = FirebaseDatabase.instance.reference().child('products');
-      await databaseRef.push().set(product);
 
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection('products').add(product);
+     
       setState(() {
         // _uploading = false;
         _selectedImages.clear();
@@ -98,6 +101,27 @@ class _UploadScreenState extends State<UploadScreen> {
       // Dismiss the progress notification after upload is complete
       await flutterLocalNotificationsPlugin.cancel(0);
     }
+    } catch (error) {
+          print(error);
+          showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Uploading failed'),
+              content: Text('Failed to upload image, Please try again.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+    }
+
   }
 
   List<XFile> _selectedImages = [];
@@ -166,9 +190,10 @@ class _UploadScreenState extends State<UploadScreen> {
                   },
                 ),
                 // Image picker button
+                SizedBox(height: 15,),
                 ElevatedButton(
                   onPressed: _pickImages,
-                  child: Text('select Images'),
+                  child: Text('Select Images'),
                 ),
                 // Show selected images
                 _selectedImages.isEmpty
@@ -179,6 +204,7 @@ class _UploadScreenState extends State<UploadScreen> {
                             Image.file(File(image.path)),
                         ],
                       ),
+                SizedBox(height: 15,),
                 ElevatedButton(
                   onPressed: _submitForm,
                   child: Text('Submit'),
