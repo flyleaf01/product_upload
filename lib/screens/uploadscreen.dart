@@ -1,11 +1,11 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
-import 'package:firebase_database/firebase_database.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:product_upload/models/textfield.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:product_upload/screens/anotherscreen.dart';
 
 class UploadScreen extends StatefulWidget {
   @override
@@ -20,6 +20,9 @@ class _UploadScreenState extends State<UploadScreen> {
   final _productSizeController = TextEditingController();
   final _productColorController = TextEditingController();
   List<String> _imageUrls = [];
+
+  final firebaseStorage = FirebaseStorage.instance;
+
  
 
   // Initialize the FlutterLocalNotificationsPlugin
@@ -36,12 +39,18 @@ class _UploadScreenState extends State<UploadScreen> {
     const InitializationSettings initializationSettings = InitializationSettings(
         android: initializationSettingsAndroid);
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    print('test');
   }
 
   // Method to show progress in the notification bar
   void showProgressNotification(int progress) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails('progress_channel', 'Progress',channelDescription: 'Notification channel for showing progress updates' );
+        AndroidNotificationDetails(
+          'progress_channel', 
+          'Progress',
+          channelDescription: 'Notification channel for showing progress updates',
+          autoCancel: false,
+          );
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.show(
@@ -54,9 +63,11 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _uploadImages() async {
+        print('before uploading');
     for (var imageFile in _selectedImages) {
       final imageName = DateTime.now().millisecondsSinceEpoch.toString();
-      final ref = firebase_storage.FirebaseStorage.instance.ref().child(imageName);
+        Reference ref = firebaseStorage.ref();
+      ref = ref.child('images').child(imageName);
       final uploadTask = ref.putFile(File(imageFile.path));
 
       uploadTask.snapshotEvents.listen((event) {
@@ -72,6 +83,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
   void _submitForm() async {
     try {
+      print('this is in try function');
       if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
@@ -99,7 +111,7 @@ class _UploadScreenState extends State<UploadScreen> {
       });
 
       // Dismiss the progress notification after upload is complete
-      await flutterLocalNotificationsPlugin.cancel(0);
+      // await flutterLocalNotificationsPlugin.cancel(0);
     }
     } catch (error) {
           print(error);
@@ -107,14 +119,14 @@ class _UploadScreenState extends State<UploadScreen> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text('Uploading failed'),
-              content: Text('Failed to upload image, Please try again.'),
+              title: const Text('Uploading failed'),
+              content:const Text('Failed to upload image, Please try again.'),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: Text('OK'),
+                  child:const Text('OK'),
                 ),
               ],
             );
@@ -128,7 +140,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _pickImages() async {
     List<XFile>? images = await ImagePicker().pickMultiImage();
-    if (images != null) {
+    if (images.isNotEmpty) {
       setState(() {
         _selectedImages = images;
       });
@@ -139,11 +151,11 @@ class _UploadScreenState extends State<UploadScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Upload Product'),
+        title:const Text('Upload Product'),
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding:const EdgeInsets.all(16.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -171,7 +183,7 @@ class _UploadScreenState extends State<UploadScreen> {
                     if (value!.isEmpty) return 'Please enter a product price';
                     return null;
                   },
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:const TextInputType.numberWithOptions(decimal: true),
                 ),
                 CustomTextField(
                   controller: _productSizeController,
@@ -190,26 +202,32 @@ class _UploadScreenState extends State<UploadScreen> {
                   },
                 ),
                 // Image picker button
-                SizedBox(height: 15,),
+                 const SizedBox(height: 15,),
                 ElevatedButton(
                   onPressed: _pickImages,
                   child: Text('Select Images'),
                 ),
                 // Show selected images
                 _selectedImages.isEmpty
-                    ? SizedBox.shrink()
+                    ?const SizedBox.shrink()
                     : Column(
                         children: [
                           for (var image in _selectedImages)
                             Image.file(File(image.path)),
                         ],
                       ),
-                SizedBox(height: 15,),
+                const SizedBox(height: 15,),
                 ElevatedButton(
                   onPressed: _submitForm,
-                  child: Text('Submit'),
+                  child:const Text('Submit'),
                 ),
-              
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: FloatingActionButton(onPressed: (){
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AnotherScreen(),));
+                  },
+                  child: const Icon(Icons.arrow_forward),),
+                )
               ],
             ),
           ),
